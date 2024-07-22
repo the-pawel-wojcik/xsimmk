@@ -5,8 +5,10 @@ import math as m
 import sys
 from xsim.db.prepare import energies_match
 from xsim.xsim_ids_processor import get_data_with_xsim_ids
+from xsim.data_collector import get_state_nicknames
 from vertical.energies_and_couplings.overview import visualize_the_couplings
 from parsers.text import str_eom_state
+from xsim.xsim_ids_processor import get_default_locations
 
 eV2cm = 8065.54
 ADIABATIC_ANALYSIS = """
@@ -229,6 +231,60 @@ def test_state_matched_better_state(state, ccsdt):
     return True
 
 
+def nickname_and_state_match(nickname: dict, state: dict) -> bool:
+    """
+    Helper for `inject_state_nicknames`.
+    """
+    if state['irrep']['name'] != nickname['irrep']['name']:
+        return False
+
+    if state['irrep']['energy #'] != nickname['irrep']['energy #']:
+        return False
+
+    return True
+
+
+def inject_state_nicknames(states: dict, nicknames: dict):
+    """
+    Adds a "nickname" keyword to the "irrep" dictionary for each eom state.
+    """
+
+    # Print warnings for states without nicknames
+    for state in states:
+        state_has_a_nickname = False
+        for nickname in nicknames:
+            if nickname_and_state_match(nickname, state):
+                state_has_a_nickname = True
+                break
+        if state_has_a_nickname is False:
+            print(f"Warning: No nickname for {str_eom_state(state)}",
+                  file=sys.stderr)
+
+    # See if for every nickname there is exactly one matching target state
+    for nickname in nicknames:
+        nickname['matches'] = []
+        for state in states:
+            if not nickname_and_state_match(nickname, state):
+                continue
+            nickname['matches'] += [state]
+
+    for nickname in nicknames:
+        if len(nickname['matches']) == 0:
+            print(f"Error: The nickname:\n\t{nickname}\n"
+                  "\tdoes not correspond to any state.",
+                  file=sys.stderr)
+            continue
+        if len(nickname['matches']) > 1:
+            print("Warrning: The nickname:"
+                  "\n\t"
+                  f"{nickname}"
+                  "\n\t"
+                  "corresponds to more than one state.",
+                  file=sys.stderr)
+        for state in nickname['matches']:
+            state['ids']['nickname'] = nickname['nickname']
+
+
 def inject_better_energies(data):
     """
     Replaces the 'energy': 'transition': 'eV' value of the `active_states`
@@ -304,14 +360,13 @@ def prepare_xsim_input(data):
 
 
 def main():
-    """
-    Variables below select which electronic states are active and which
-    vibrational modes are active.
-    """
     args = get_args()
+    default_locations = get_default_locations()
     data = get_data_with_xsim_ids()
 
     if 'better energies' in data:
+        # TODO: move section that collectes "better energies" from
+        # `get_data_xsim_ids` in here.
         print("Info: Using better energies", file=sys.stderr)
         inject_better_energies(data)
 
@@ -335,6 +390,11 @@ def main():
         eom_states = data['eom states']
         lambdas = data['lambdas']
         save_svg = True
+        if 'state_nicknames' in default_locations:
+            print("Info: Using state nicknames.", file=sys.stderr)
+            nicknames = get_state_nicknames(default_locations)
+            inject_state_nicknames(eom_states, nicknames['state nicknames'])
+
         visualize_the_couplings(eom_states, lambdas, save=save_svg)
 
 
