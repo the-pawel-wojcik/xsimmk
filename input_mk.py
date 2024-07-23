@@ -3,6 +3,7 @@
 import argparse
 import math as m
 import sys
+import json
 from xsim.db.prepare import energies_match
 from xsim.xsim_ids_processor import get_data_with_xsim_ids
 from xsim.data_collector import get_state_nicknames
@@ -244,23 +245,30 @@ def nickname_and_state_match(nickname: dict, state: dict) -> bool:
     return True
 
 
-def inject_state_nicknames(states: dict, nicknames: dict):
-    """
-    Adds a "nickname" keyword to the "irrep" dictionary for each eom state.
-    """
-
-    # Print warnings for states without nicknames
+def assure_every_state_has_exactly_one_nickname(states: dict, nicknames: dict):
+    # Print warnings for states with zero or more than one nicknames
     for state in states:
-        state_has_a_nickname = False
+        state['n_nicknames'] = 0
         for nickname in nicknames:
             if nickname_and_state_match(nickname, state):
-                state_has_a_nickname = True
-                break
-        if state_has_a_nickname is False:
+                state['n_nicknames'] += 1
+
+        if state['n_nicknames'] == 0:
             print(f"Warning: No nickname for {str_eom_state(state)}",
                   file=sys.stderr)
+        elif state['n_nicknames'] > 1:
+            print(f"Error: Multiple nicknames for {str_eom_state(state)}",
+                  file=sys.stderr)
+            sys.exit(1)
 
-    # See if for every nickname there is exactly one matching target state
+        del state['n_nicknames']
+
+
+def assure_every_nickname_finds_its_state(states: dict, nicknames: dict):
+    """
+    Print warnings if there are nicknames that correspond to zero or more than
+    one states.
+    """
     for nickname in nicknames:
         nickname['matches'] = []
         for state in states:
@@ -268,12 +276,12 @@ def inject_state_nicknames(states: dict, nicknames: dict):
                 continue
             nickname['matches'] += [state]
 
-    for nickname in nicknames:
         if len(nickname['matches']) == 0:
-            print(f"Error: The nickname:\n\t{nickname}\n"
+            print(f"Warning: The nickname:\n\t{nickname}\n"
                   "\tdoes not correspond to any state.",
                   file=sys.stderr)
             continue
+
         if len(nickname['matches']) > 1:
             print("Warrning: The nickname:"
                   "\n\t"
@@ -281,8 +289,36 @@ def inject_state_nicknames(states: dict, nicknames: dict):
                   "\n\t"
                   "corresponds to more than one state.",
                   file=sys.stderr)
+
         for state in nickname['matches']:
             state['ids']['nickname'] = nickname['nickname']
+
+        del nickname['matches']
+
+
+def inject_state_nicknames(states: dict, nicknames: dict,
+                           match_all_nicknames: bool = True):
+    """
+    Adds a "nickname" keyword to the "ids" dictionary for each eom state.
+    """
+    assure_every_state_has_exactly_one_nickname(states, nicknames)
+    if match_all_nicknames is True:
+        assure_every_nickname_finds_its_state(states, nicknames)
+
+    for nickname in nicknames:
+        for state in states:
+            if not nickname_and_state_match(nickname, state):
+                continue
+            state['ids']['nickname'] = nickname['nickname']
+
+
+def inject_state_nicknames_to_lambdas(lambdas: dict, nicknames: dict):
+    """
+    Adds a "nickname" keyword to the "ids" dictionary for each eom state.
+    """
+    for lmbda in lambdas:
+        states = lmbda["EOM states"]
+        inject_state_nicknames(states, nicknames, match_all_nicknames=False)
 
 
 def inject_better_energies(data):
@@ -389,11 +425,14 @@ def main():
     if args.visualize is True:
         eom_states = data['eom states']
         lambdas = data['lambdas']
+
         save_svg = True
         if 'state_nicknames' in default_locations:
             print("Info: Using state nicknames.", file=sys.stderr)
             nicknames = get_state_nicknames(default_locations)
-            inject_state_nicknames(eom_states, nicknames['state nicknames'])
+            nicknames = nicknames['state nicknames']
+            inject_state_nicknames(eom_states, nicknames)
+            inject_state_nicknames_to_lambdas(lambdas, nicknames)
 
         visualize_the_couplings(eom_states, lambdas, save=save_svg)
 
