@@ -71,7 +71,20 @@ Literally the same as with lambdas. Use the `kappas_linear` name for the
 directory.
 
 5. Quadratic kappas
+(automated -- questionable reliability)
 Run the `generate_kappas_quadratic.sh` script 
+
+(manual)
+On each of the `xquadmodelout` files run 
+```bash
+kappa_quadratic.py -j <xquadmodelout> <state_name> | jq > kappa2nd_${a}.json
+cp kappa2nd_${a}.json db/kappa_quadratic
+```
+After all states are ready, do
+```bash
+cd db/kappa_quadratic
+cat kappa2nd_*.json | jq -s . > all_kappa2nd.json
+```
 
 ## How to use the data
 Data collected in this directory is used by other programs, most likely,
