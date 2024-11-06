@@ -3,15 +3,14 @@
 import argparse
 import math as m
 import sys
-import json
 from xsim.db.prepare import energies_match
 from xsim.xsim_ids_processor import get_data_with_xsim_ids
 from xsim.data_collector import get_state_nicknames
 from vertical.energies_and_couplings.overview import visualize_the_couplings
-from parsers.text import str_eom_state
+from cfour_parser.text import str_eom_state
 from xsim.xsim_ids_processor import get_default_locations
 
-eV2cm = 8065.54
+eV2cm = 8065.543937
 ADIABATIC_ANALYSIS = """
 Analyze
 Convention
@@ -77,10 +76,16 @@ def prepare_xsim_input_1st_sec(states, modes, basis, lanczos):
             # f = state['Oscillator strength']
             # xsim_input += f"{f:.3f} "
             # The dipole strength version
-            tdm_vec = state['Dipole strength']
-            tdm_square = sum([i**2 for i in tdm_vec.values()])
-            tdm = m.sqrt(tdm_square)
-            xsim_input += f"{tdm:.3f} "
+            # # HINT: This is an old (incorrect) use of xsim
+            # tdm_vec = state['Dipole strength']
+            # tdm_square = sum([i**2 for i in tdm_vec.values()])
+            # tdm = m.sqrt(tdm_square)
+            # HINT: This is the new (correct) use of xsim
+            #       use moments not squares
+            dipole_strength = state['Dipole strength']
+            dipole_strength_sum = sum([abs(i) for i in dipole_strength.values()])
+            moment = m.sqrt(dipole_strength_sum)
+            xsim_input += f"{moment:.3f} "
     xsim_input = xsim_input[:-1] + "\n"
 
     xsim_input += "Vertical Energies\n"
