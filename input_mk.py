@@ -5,8 +5,7 @@ import math as m
 import sys
 from xsim.db.prepare import energies_match
 from xsim.xsim_ids_processor import get_data_with_xsim_ids
-from vertical.energies_and_couplings.overview import visualize_the_couplings
-from xsim.xsim_ids_processor import get_default_locations
+from xsim.helpers.plot_overview import visualize_the_couplings
 
 eV2cm = 8065.543937
 ADIABATIC_ANALYSIS = """
@@ -263,7 +262,6 @@ def prepare_xsim_input(data):
 
 def main():
     args = get_args()
-    default_locations = get_default_locations()
     data = get_data_with_xsim_ids()
 
     # TODO: it would be nice to know if there are lambdas or kappas missing
