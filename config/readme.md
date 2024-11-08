@@ -80,3 +80,34 @@ something different create the `state_nicknames` file like so
 As you can see above for each state all that matters is that `irrep` dictionary
 stores the `name` and `energy #` that match the state for which name will be
 changed.
+
+### `mode_names_Mulliken` (optional)
+Ab initio programs often use non-Mulliken orientation for the molecule's
+geometry, but using the Mulliken convention is good. This file allows for a
+manual assignment of mode names. Relavant only for plotting. Example file:
+```json
+[
+  {
+    "frequency, cm-1": 1000,
+    "Mulliken": {
+      "name": "A1",
+      "number": 1
+    }
+  },
+  {
+    "frequency, cm-1": 700,
+    "Mulliken": {
+      "name": "A1",
+      "number": 2
+    }
+  },
+  {
+    "frequency, cm-1": 800,
+    "Mulliken": {
+      "name": "B2",
+      "number": 3
+    }
+  }
+]
+```
+Modes are matched by their frequency.

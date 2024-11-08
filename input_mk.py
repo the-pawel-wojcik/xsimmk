@@ -5,9 +5,7 @@ import math as m
 import sys
 from xsim.db.prepare import energies_match
 from xsim.xsim_ids_processor import get_data_with_xsim_ids
-from xsim.data_collector import get_state_nicknames
 from vertical.energies_and_couplings.overview import visualize_the_couplings
-from cfour_parser.text import str_eom_state
 from xsim.xsim_ids_processor import get_default_locations
 
 eV2cm = 8065.543937
@@ -83,7 +81,9 @@ def prepare_xsim_input_1st_sec(states, modes, basis, lanczos):
             # HINT: This is the new (correct) use of xsim
             #       use moments not squares
             dipole_strength = state['Dipole strength']
-            dipole_strength_sum = sum([abs(i) for i in dipole_strength.values()])
+            dipole_strength_sum = sum([
+                abs(i) for i in dipole_strength.values()
+            ])
             moment = m.sqrt(dipole_strength_sum)
             xsim_input += f"{moment:.3f} "
     xsim_input = xsim_input[:-1] + "\n"
@@ -224,145 +224,6 @@ def prepare_xsim_input_4th_sec(quadratic_kappas, FULLY_SYMMETRIC):
     return xsim_input
 
 
-def test_state_matched_better_state(state, ccsdt):
-    """
-    States match when "irrep"'s "name" and "energy #" match.
-    """
-
-    if state['irrep']['name'] != ccsdt['irrep']['name']:
-        return False
-    if state['irrep']['energy #'] != ccsdt['irrep']['energy #']:
-        return False
-
-    return True
-
-
-def nickname_and_state_match(nickname: dict, state: dict) -> bool:
-    """
-    Helper for `inject_state_nicknames`.
-    """
-    if state['irrep']['name'] != nickname['irrep']['name']:
-        return False
-
-    if state['irrep']['energy #'] != nickname['irrep']['energy #']:
-        return False
-
-    return True
-
-
-def assure_every_state_has_exactly_one_nickname(states: dict, nicknames: dict):
-    # Print warnings for states with zero or more than one nicknames
-    for state in states:
-        state['n_nicknames'] = 0
-        for nickname in nicknames:
-            if nickname_and_state_match(nickname, state):
-                state['n_nicknames'] += 1
-
-        if state['n_nicknames'] == 0:
-            print(f"Warning: No nickname for {str_eom_state(state)}",
-                  file=sys.stderr)
-        elif state['n_nicknames'] > 1:
-            print(f"Error: Multiple nicknames for {str_eom_state(state)}",
-                  file=sys.stderr)
-            sys.exit(1)
-
-        del state['n_nicknames']
-
-
-def assure_every_nickname_finds_its_state(states: dict, nicknames: dict):
-    """
-    Print warnings if there are nicknames that correspond to zero or more than
-    one states.
-    """
-    for nickname in nicknames:
-        nickname['matches'] = []
-        for state in states:
-            if not nickname_and_state_match(nickname, state):
-                continue
-            nickname['matches'] += [state]
-
-        if len(nickname['matches']) == 0:
-            print(f"Warning: The nickname:\n\t{nickname}\n"
-                  "\tdoes not correspond to any state.",
-                  file=sys.stderr)
-            continue
-
-        if len(nickname['matches']) > 1:
-            print("Warrning: The nickname:"
-                  "\n\t"
-                  f"{nickname}"
-                  "\n\t"
-                  "corresponds to more than one state.",
-                  file=sys.stderr)
-
-        for state in nickname['matches']:
-            state['ids']['nickname'] = nickname['nickname']
-
-        del nickname['matches']
-
-
-def inject_state_nicknames(states: dict, nicknames: dict,
-                           match_all_nicknames: bool = True):
-    """
-    Adds a "nickname" keyword to the "ids" dictionary for each eom state.
-    """
-    assure_every_state_has_exactly_one_nickname(states, nicknames)
-    if match_all_nicknames is True:
-        assure_every_nickname_finds_its_state(states, nicknames)
-
-    for nickname in nicknames:
-        for state in states:
-            if not nickname_and_state_match(nickname, state):
-                continue
-            state['ids']['nickname'] = nickname['nickname']
-
-
-def inject_state_nicknames_to_lambdas(lambdas: dict, nicknames: dict):
-    """
-    Adds a "nickname" keyword to the "ids" dictionary for each eom state.
-    """
-    for lmbda in lambdas:
-        states = lmbda["EOM states"]
-        inject_state_nicknames(states, nicknames, match_all_nicknames=False)
-
-
-def inject_better_energies(data):
-    """
-    Replaces the 'energy': 'transition': 'eV' value of the `active_states`
-    with the correspondig "better energies" value found in `data`.
-
-    The "better energies" are basically a vertical energies at the same
-    geometry but at a better level of theory.
-
-    Prints an error to stderr if the "better energies" value is missing, and
-    leaves the original value unchanged.
-    """
-
-    if 'better energies' not in data:
-        print("Error! Better energies not available.", file=sys.stderr)
-
-    better_energies_states = data['better energies']
-    states = data['eom states']
-    for state in states:
-        better_energy = None
-        for better_state in better_energies_states:
-            if not test_state_matched_better_state(state, better_state):
-                continue
-            better_energy = better_state['energy']['transition']['eV']
-            break
-
-        if better_energy is None:
-            if state['ids']['xsim #'] >= 0:
-                print('Missing "better" energy for an active state:\n\t'
-                      + str_eom_state(state), file=sys.stderr)
-            continue
-
-        if 'transition' not in state['energy']:
-            continue
-
-        state['energy']['transition']['eV'] = better_energy
-
-
 def prepare_xsim_input(data):
     basis = 15
     lanczos = 2000
@@ -405,12 +266,6 @@ def main():
     default_locations = get_default_locations()
     data = get_data_with_xsim_ids()
 
-    if 'better energies' in data:
-        # TODO: move section that collectes "better energies" from
-        # `get_data_xsim_ids` in here.
-        print("Info: Using better energies", file=sys.stderr)
-        inject_better_energies(data)
-
     # TODO: it would be nice to know if there are lambdas or kappas missing
     # for a state that is active
     xsim_input = prepare_xsim_input(data)
@@ -430,16 +285,15 @@ def main():
     if args.visualize is True:
         eom_states = data['eom states']
         lambdas = data['lambdas']
+        nmodes: list[dict] = data['nmodes']
 
         save_svg = True
-        if 'state_nicknames' in default_locations:
-            print("Info: Using state nicknames.", file=sys.stderr)
-            nicknames = get_state_nicknames(default_locations)
-            nicknames = nicknames['state nicknames']
-            inject_state_nicknames(eom_states, nicknames)
-            inject_state_nicknames_to_lambdas(lambdas, nicknames)
-
-        visualize_the_couplings(eom_states, lambdas, save=save_svg)
+        visualize_the_couplings(
+            eom_states=eom_states,
+            normal_modes=nmodes,
+            lambdas=lambdas,
+            save=save_svg
+        )
 
 
 if __name__ == "__main__":
