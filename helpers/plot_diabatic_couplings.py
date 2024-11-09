@@ -191,10 +191,10 @@ def symmetry_match(left: dict, right: dict) -> bool:
 
 
 def prepare_yticklabels(
-        lambdas: list[dict],
+        normal_modes: list[dict],
         mulliken_to_idx: list[dict],
         use_Mulliken: bool = True,
-) -> tuple[list[str], list[str]]:
+) -> list[str]:
 
     symmetry_labels = False
     symmetry_labels = True
@@ -205,7 +205,7 @@ def prepare_yticklabels(
                     'Mulliken': mode['Mulliken'],
                     'frequency, cm-1': mode['frequency, cm-1']
                 }
-                for mode in lambdas[0]['gradient']
+                for mode in normal_modes
             ]
 
             pre_mode_symmetries = [
@@ -233,7 +233,7 @@ def prepare_yticklabels(
         else:
             mode_symmetries = [
                 pretty_print_irrep(mode['symmetry'])
-                for mode in lambdas[0]['gradient']
+                for mode in normal_modes
             ]
 
     return mode_symmetries, None
@@ -256,6 +256,7 @@ def show_sns_lambdas_summary(ax, normal_modes, lambdas, **heatmap_kwargs):
     )
 
     sort_lambdas(lambdas)
+    normal_modes.sort(key=lambda x: x['frequency, cm-1'])
 
     couplings, annotations, labels = collect_sns_matrices(
         lambdas=lambdas,
@@ -298,8 +299,8 @@ def show_sns_lambdas_summary(ax, normal_modes, lambdas, **heatmap_kwargs):
         "annot": annotations,  # bool or matrix
     })
 
-    mode_symmetries, mode_frequencies = prepare_yticklabels(
-        lambdas, mulliken_to_idx, use_Mulliken
+    mode_symmetries = prepare_yticklabels(
+        normal_modes, mulliken_to_idx, use_Mulliken
     )
 
     parameters['yticklabels'] = mode_symmetries
