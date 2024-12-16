@@ -11,16 +11,22 @@ from xsim.data_collector import get_eom_states, get_normal_modes, \
     get_kappas_quadratic, get_better_energies, get_Mulliken_mode_names, \
     get_state_nicknames
 from parsers.text import str_eom_state
+from typing import Any
 
 # modes have the same frequency if they differ by less than FREQ_TOL cm-1
-FREQ_TOL = 1
+FREQ_TOL = 0.75
 
 
-def get_default_locations() -> dict:
+def get_default_locations(
+        default_locations_filename: str | None = None
+) -> dict:
     """
     Returns data from the `default_locations.toml` file.
     """
-    default_locations_path = "~/Code/chemistry/cfour/xsim/config/default_locations.toml"
+    if default_locations_filename is None:
+        default_locations_path = "~/Code/chemistry/cfour/xsim/config/default_locations.toml"
+    else:
+        default_locations_path = default_locations_filename
     default_locations_path = os.path.expanduser(default_locations_path)
     with open(default_locations_path, 'rb') as default_locations_file:
         default_locations = tomllib.load(default_locations_file)
@@ -389,7 +395,9 @@ def inject_better_energies(data):
         state['energy']['transition']['eV'] = better_energy
 
 
-def get_data_with_xsim_ids():
+def get_data_with_xsim_ids(
+        default_locations_filename: str | None = None
+) -> dict[str, Any]:
     """
     Returns a dictionary.
 
@@ -398,7 +406,7 @@ def get_data_with_xsim_ids():
     These new ids will be set to -1 for modes or states that are incative in
     the simulation or unrecognized.
     """
-    default_locations = get_default_locations()
+    default_locations = get_default_locations(default_locations_filename)
 
     eom_states = get_eom_states(default_locations)
     state_idxs, mode_idxs = get_active_states_and_modes(default_locations)

@@ -29,6 +29,10 @@ def get_args():
     parser.add_argument('-a', '--adiabatic_analysis', default=False,
                         action='store_true', help='Add section that requests'
                         ' an analysis of the adiabatic states.')
+    parser.add_argument(
+        '--default_locations',
+        type=str,
+    )
     parser.add_argument('-p', '--print_vectors', default=False,
                         action='store_true', help='Add section that requests'
                         ' printing of solution vectors. BE CAREFUL: produces'
@@ -268,7 +272,9 @@ def prepare_xsim_input(data):
 
 def main():
     args = get_args()
-    data = get_data_with_xsim_ids()
+    data = get_data_with_xsim_ids(
+        default_locations_filename=args.default_locations,
+    )
 
     # TODO: it would be nice to know if there are lambdas or kappas missing
     # for a state that is active
