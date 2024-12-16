@@ -64,9 +64,15 @@ def prepare_xsim_input_1st_sec(states, modes, basis, lanczos):
 
     xsim_input += "Transition Moment\n"
     for state in states:
-        if 'Norm of oscillator strength' not in state.keys():
-            print("Error. Oscillator strength not available for state:")
-            print(state)
+        if 'Dipole strength' not in state.keys():
+            print(
+                "Error. Dipole strength not available for state:",
+                file=sys.stderr
+            )
+            print(
+                state,
+                file=sys.stderr
+            )
             xsim_input += "xxx "
         else:
             # # The oscillator strength version
