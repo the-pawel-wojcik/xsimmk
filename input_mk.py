@@ -26,22 +26,42 @@ Seamfind
 
 def get_args():
     parser = argparse.ArgumentParser(usage='Reads all data from config.toml')
-    parser.add_argument('-a', '--adiabatic_analysis', default=False,
-                        action='store_true', help='Add section that requests'
-                        ' an analysis of the adiabatic states.')
+    parser.add_argument(
+        '-a',
+        '--adiabatic_analysis',
+        default=False,
+        action='store_true',
+        help='Add section that requests an analysis of the adiabatic'
+        ' states.'
+    )
     parser.add_argument(
         '--default_locations',
         type=str,
     )
-    parser.add_argument('-p', '--print_vectors', default=False,
-                        action='store_true', help='Add section that requests'
-                        ' printing of solution vectors. BE CAREFUL: produces'
-                        ' gigatinc files: LEVECS and LBASIS.')
-    parser.add_argument('-v', '--visualize', default=True,
-                        action='store_false', help='By default this program'
-                        ' produces a figure visualizing the active states and'
-                        ' modes of the model. Use this switch to disable this'
-                        ' functionality.')
+    parser.add_argument(
+        '-p',
+        '--print_vectors',
+        default=False,
+        action='store_true',
+        help='Add section that requests printing of solution vectors.'
+             ' BE CAREFUL: produces gigantic files: LEVECS and LBASIS.',
+    )
+    parser.add_argument(
+        '-v',
+        '--visualize',
+        default=True,
+        action='store_false',
+        help='By default this program produces a figure visualizing the'
+             ' active states and modes of the model. Use this switch to'
+             ' disable this functionality.',
+    )
+    parser.add_argument(
+        '--no_couplings',
+        default=False,
+        action='store_true',
+        help='Prepare the input file but do NOT include in it the diabatic'
+             ' couplings',
+    )
     args = parser.parse_args()
     return args
 
@@ -121,14 +141,12 @@ def prepare_xsim_input_2nd_sec(modes):
     return xsim_input
 
 
-def prepare_xsim_input_3rd_sec(data):
+def prepare_xsim_input_3rd_sec_gradients(linear_kappas) -> str:
     """ This section corresponds to energy gradients.
-    Includes both state gradients (linear kappas) and the interstate gradients
-    (lambdas).
+    Includes only state gradients (linear kappas)
     """
     xsim_input = "Linear\n"
 
-    linear_kappas = data['linear kappas']
     for kappa in linear_kappas:
         state_idx = kappa['EOM states'][0]['xsim #']
 
@@ -153,8 +171,16 @@ def prepare_xsim_input_3rd_sec(data):
 
             xsim_input += f"{state_idx} {state_idx} {mode['xsim #']}"
             xsim_input += f" {amplitude:-7.1f}\n"
+    return xsim_input
 
-    lambdas = data['lambdas']
+
+def prepare_xsim_input_3rd_sec_couplings(lambdas) -> str:
+    """ This section corresponds to energy gradients.
+    Includes only interstate gradients (lambdas), i.e., linear diabatic
+    coupling constants.
+    """
+
+    xsim_input = str()
     for lmbd in lambdas:
         state_ids = [state['xsim #'] for state in lmbd['EOM states']]
         if len(state_ids) != 2:
@@ -233,7 +259,7 @@ def prepare_xsim_input_4th_sec(quadratic_kappas, FULLY_SYMMETRIC):
     return xsim_input
 
 
-def prepare_xsim_input(data):
+def prepare_xsim_input(data, no_couplings: bool = False) -> str:
     basis = 15
     lanczos = 2000
     SECTION_SEP = "0 0 0 0 0 0 0 0 0 0 0 0\n"
@@ -252,7 +278,9 @@ def prepare_xsim_input(data):
     xsim_input += SECTION_SEP
     xsim_input += prepare_xsim_input_2nd_sec(active_modes)
     xsim_input += SECTION_SEP
-    xsim_input += prepare_xsim_input_3rd_sec(data)
+    xsim_input += prepare_xsim_input_3rd_sec_gradients(data['linear kappas'])
+    if no_couplings is False:
+        xsim_input += prepare_xsim_input_3rd_sec_couplings(data['lambdas'])
     xsim_input += SECTION_SEP
 
     FULLY_SYMMETRIC = 'Ag'
@@ -278,7 +306,7 @@ def main():
 
     # TODO: it would be nice to know if there are lambdas or kappas missing
     # for a state that is active
-    xsim_input = prepare_xsim_input(data)
+    xsim_input = prepare_xsim_input(data, no_couplings=args.no_couplings)
 
     if args.adiabatic_analysis is True:
         xsim_input = xsim_input[:-1]  # remove the last new line
