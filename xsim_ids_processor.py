@@ -9,7 +9,7 @@ from xsim.db.prepare import states_are_different, energies_match
 from xsim.data_collector import get_eom_states, get_normal_modes, \
     get_linear_kappas, get_lambdas, get_active_states_and_modes, \
     get_kappas_quadratic, get_better_energies, get_Mulliken_mode_names, \
-    get_state_nicknames
+    get_state_nicknames, get_quadratic_kappas_diabatic
 from parsers.text import str_eom_state
 from typing import Any
 
@@ -182,10 +182,10 @@ def assign_state_xsim_ids_to_k2_eom_states(kappas_quadratic, known_states):
     """
     for kappas2nd in kappas_quadratic:
         test_name = kappas2nd['state']['text name']
-        if test_name[0] == '1' or test_name[0] == '2':
+        try:
             test_irrep_no = int(test_name[0])
             test_name = test_name[1:]
-        else:
+        except ValueError:
             test_irrep_no = 1
 
         for known_state in known_states:
@@ -195,6 +195,49 @@ def assign_state_xsim_ids_to_k2_eom_states(kappas_quadratic, known_states):
                 continue
             kappas2nd['state']['ids'] = known_state['ids']
             break
+
+        if 'ids' not in kappas2nd['state']:
+            print("Warning: unable to assing ids to the kappas state"
+                  f" {kappas2nd['state']}",
+                  file=sys.stderr)
+
+
+def assign_state_ids_in_quadratic_kappas_diabatic(
+    quad_kapps_diab,
+    known_states
+):
+    """ This function adds ids to each item of the `EOM states` list.
+    An example of the quad_kapps_diab json
+    ```json
+    {
+        "EOM states": [
+            {"energy": {"total": {"au": -263.75449188023947}}},
+            {"energy": {"total": {"au": -263.75449188023947}}}
+        ],
+        "normal modes": [ 
+            {"Mulliken": {"number": 20, "symmetry": "b3g"}},
+            {"Mulliken": {"number": 20, "symmetry": "b3g"}}
+        ],
+        "kappa, cm-1": 1491.7
+    },
+    {
+    ```
+    """
+    for kappa in quad_kapps_diab:
+        for eom_state in kappa['EOM states']:
+            new_energy = eom_state['energy']['total']['au']
+            for known_state in known_states:
+                known_energy = known_state['energy']['total']['au']
+                if not energies_match(new_energy, known_energy, tolerance=1e-6):
+                    continue
+                eom_state['ids'] = known_state['ids']
+                break
+
+            if 'ids' not in eom_state:
+                print("Warning: unable to assing ids to one of the state in "
+                      f" quadratic diabatic kappas!",
+                      file=sys.stderr)
+                eom_state['ids'] = None
 
 
 def assign_mode_xsim_ids_to_gradient_modes(gradients, known_nmodes):
@@ -224,12 +267,63 @@ def assign_mode_xsim_ids_to_gradient_modes(gradients, known_nmodes):
                       f"{gradient_mode_w:.2f} cm-1) "
                       "doesn't match any known mode.", file=sys.stderr)
                 gradient_mode['xsim #'] = None
+    return
 
+
+
+def modes_match_Mullikens(left, right):
+    if left['Mulliken']['symmetry'] != right['Mulliken']['symmetry']:
+        return False
+    if left['Mulliken']['number'] != right['Mulliken']['number']:
+        return False
+    return True
+
+
+def assign_mode_xsim_ids_in_quadratic_kappas_diabatic(
+    quad_kapps_diab,
+    known_nmodes
+):
+    """ This function adds ids to each item of the `normal modes` list.
+    An example of the quad_kapps_diab json
+    ```json
+    {
+        "EOM states": [
+            {"energy": {"total": {"au": -263.75449188023947}}, "ids": ...},
+            {"energy": {"total": {"au": -263.75449188023947}}, "ids": ...}
+        ],
+        "normal modes": [ 
+            {"Mulliken": {"number": 20, "symmetry": "b3g"}},
+            {"Mulliken": {"number": 20, "symmetry": "b3g"}}
+        ],
+        "kappa, cm-1": 1491.7
+    },
+    {
+    ```
+    """
+    for kappa in quad_kapps_diab:
+        for mode in kappa['normal modes']:
+            for known_mode in known_nmodes:
+                if not modes_match_Mullikens(mode, known_mode):
+                    continue
+                mode['xsim #'] = known_mode['xsim #']
+                break
+            if 'xsim #' not in mode:
+                print(
+                    "Warning! Unable to assing xsim # to a mode from"
+                    " quadratic diabatic kappas.",
+                    file=sys.stderr
+                )
+                mode['xsim #'] = None
+    return
+                
 
 def assign_mode_xsim_ids_to_k2_freqs(kappas_quadratic, known_nmodes):
     """
     For each set of kappas add a dictionary item that translates between
     the matrix index and the xsim id.
+
+    Work also for other data with the quadratic-kappas-like structure, i.e.,
+    quadratic diabatic shifts.
     """
 
     # first six are translation/rotations so they get -1, all that follow
@@ -443,6 +537,23 @@ def get_data_with_xsim_ids(
         assign_mode_xsim_ids_to_k2_freqs(kappas_quadratic, nmodes)
         kappas_quadratic.sort(key=lambda x: x['state']['ids']['xsim #'])
         out_pack['quadratic kappas'] = kappas_quadratic
+
+    # diabatic shifts second order
+    quadratic_kappas_diabatic = get_quadratic_kappas_diabatic(
+        default_locations
+    )
+    if quadratic_kappas_diabatic is None:
+        out_pack['quadratic kappas diabatic'] = None
+    else:
+        assign_state_ids_in_quadratic_kappas_diabatic(
+            quadratic_kappas_diabatic, 
+            eom_states
+        )
+        assign_mode_xsim_ids_in_quadratic_kappas_diabatic(
+            quadratic_kappas_diabatic,
+            nmodes,
+        )
+        out_pack['quadratic kappas diabatic'] = quadratic_kappas_diabatic
 
     # lambdas are basically a transition gradient
     lambdas = get_lambdas(default_locations)

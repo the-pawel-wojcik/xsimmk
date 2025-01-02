@@ -221,7 +221,7 @@ def prepare_xsim_input_4th_sec(quadratic_kappas, FULLY_SYMMETRIC):
     This section prepares the second energy derivatives (quadratic kappas).
     The expansion coefficients are listed only along the fully symmetric modes.
     """
-    xsim_input = "Quadratic\n"
+    xsim_input = ""
     """
     state state mode mode coefficient
     """
@@ -259,6 +259,41 @@ def prepare_xsim_input_4th_sec(quadratic_kappas, FULLY_SYMMETRIC):
     return xsim_input
 
 
+def prepare_xsim_input_4th_sec_dibatic(quadratic_kappas_diabatic):
+    """
+    This section prepares the second energy derivatives (quadratic kappas)
+    along the coupling modes, aka, along the diabatic part of potential that
+    does not match the adiabatic part of the potential.
+    """
+    """
+    state state mode mode coefficient
+    """
+    xsim_input = ""
+    for k2 in quadratic_kappas_diabatic:
+        state_ids = [state['ids']['xsim #'] for state in k2['EOM states']]
+
+        # of no interest if any of the involved states is not part of the model
+        if any([id < 1 for id in state_ids]):
+            continue
+
+        mode_ids = [mode['xsim #'] for mode in k2['normal modes']]
+        if any([id < 1 for id in mode_ids]):
+            continue
+
+        amplitude = k2['kappa, cm-1']
+        if energies_match(amplitude, 0.0, 0.1):
+            continue
+
+        xsim_input += " ".join([str(id) for id in state_ids]) 
+        xsim_input += " "
+        xsim_input += " ".join([str(id) for id in mode_ids])
+        xsim_input += " "
+        xsim_input += f"{amplitude:-7.1f}"
+        xsim_input += "\n"
+
+    return xsim_input
+
+
 def prepare_xsim_input(data, no_couplings: bool = False) -> str:
     basis = 15
     lanczos = 2000
@@ -283,18 +318,32 @@ def prepare_xsim_input(data, no_couplings: bool = False) -> str:
         xsim_input += prepare_xsim_input_3rd_sec_couplings(data['lambdas'])
     xsim_input += SECTION_SEP
 
-    FULLY_SYMMETRIC = 'Ag'
     quadratic_kappas = data['quadratic kappas']
+    quadratic_kappas_diabatic = data['quadratic kappas diabatic']
+    if quadratic_kappas is not None or quadratic_kappas_diabatic is not None:
+        xsim_input += "Quadratic\n"
+
+    FULLY_SYMMETRIC = 'Ag'
     if quadratic_kappas is None:
-        print("Warning: No quadratic kappas available", file=sys.stderr)
+        print("Info: No quadratic kappas available", file=sys.stderr)
     else:
-        print(f"Warning: Looking for {FULLY_SYMMETRIC} in "
+        print(f"Info: Looking for {FULLY_SYMMETRIC} in "
               "quadratic_kappas kappas! Adjust for your point group.",
               file=sys.stderr)
         xsim_input += prepare_xsim_input_4th_sec(
             quadratic_kappas, FULLY_SYMMETRIC)
+
+    if quadratic_kappas_diabatic is None:
+        print("Info: No quadratic kappas diabatic available", file=sys.stderr)
+    else:
+        xsim_input += prepare_xsim_input_4th_sec_dibatic(
+            quadratic_kappas_diabatic
+        )
+
+    if quadratic_kappas_diabatic is not None or quadratic_kappas is not None:
         xsim_input += SECTION_SEP
 
+    xsim_input = xsim_input[:-1]  # remove the trailing newline
     return xsim_input
 
 
