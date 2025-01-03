@@ -228,14 +228,15 @@ def assign_state_ids_in_quadratic_kappas_diabatic(
             new_energy = eom_state['energy']['total']['au']
             for known_state in known_states:
                 known_energy = known_state['energy']['total']['au']
-                if not energies_match(new_energy, known_energy, tolerance=1e-6):
+                if not energies_match(new_energy, known_energy, tolerance=1e-5):
                     continue
                 eom_state['ids'] = known_state['ids']
                 break
 
             if 'ids' not in eom_state:
-                print("Warning: unable to assing ids to one of the state in "
-                      f" quadratic diabatic kappas!",
+                print("Warning: unable to assing ids the states "
+                      f"(E tot = {new_energy:.5f} Ha) in quadratic diabatic"
+                      " kappas.",
                       file=sys.stderr)
                 eom_state['ids'] = None
 
