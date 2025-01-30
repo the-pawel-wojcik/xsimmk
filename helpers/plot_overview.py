@@ -131,6 +131,7 @@ def visualize_the_couplings(
         eom_states,
         normal_modes,
         lambdas,
+        show_frequencies: bool = True,
         save: bool = False
 ):
     height = 3.75
@@ -165,6 +166,7 @@ def visualize_the_couplings(
         lambdas=lambdas,
         normal_modes=normal_modes,
         take_abs=True,
+        show_frequencies=show_frequencies,
         **heatmap_kwargs
     )
 

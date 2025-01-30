@@ -265,6 +265,7 @@ def show_sns_lambdas_summary(
         normal_modes,
         lambdas,
         take_abs: bool = True,
+        show_frequencies: bool = True,
         **heatmap_kwargs
 ):
     use_Mulliken = all(
@@ -282,6 +283,11 @@ def show_sns_lambdas_summary(
         normal_modes=normal_modes,
         take_abs=take_abs,
     )
+
+    if show_frequencies is False:
+        couplings = [row[1:] for row in couplings]
+        annotations = [row[1:] for row in annotations]
+        labels = labels[1:]
 
     max_row = max(couplings, key=lambda x: abs(max(x, key=lambda y: abs(y))))
     max_value = abs(max(max_row, key=lambda x: abs(x)))
@@ -327,7 +333,7 @@ def show_sns_lambdas_summary(
     parameters['yticklabels'] = mode_symmetries
 
     parameters.update(heatmap_kwargs)
-    ax: mpl.axes.Axes = sns.heatmap(couplings, **parameters)
+    sns.heatmap(couplings, **parameters)
 
     return ax
 

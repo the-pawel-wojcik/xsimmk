@@ -56,6 +56,14 @@ def get_args():
              ' disable this functionality.',
     )
     parser.add_argument(
+        '-f',
+        '--show_frequencies',
+        default=False,
+        action='store_true',
+        help='When -v, this flag allows to show mode frequencies together with'
+        'couplings',
+    )
+    parser.add_argument(
         '--no_couplings',
         default=False,
         action='store_true',
@@ -362,6 +370,7 @@ def main():
         xsim_input += ADIABATIC_ANALYSIS
 
     if args.print_vectors is True:
+        xsim_input += '\n'
         xsim_input += "Storevectors\n"
         xsim_input += "Plotroots\n"
         xsim_input += "<n_roots>\n"
@@ -374,11 +383,13 @@ def main():
         lambdas = data['lambdas']
         nmodes: list[dict] = data['nmodes']
 
+        show_frequencies = args.show_frequencies
         save_svg = True
         visualize_the_couplings(
             eom_states=eom_states,
             normal_modes=nmodes,
             lambdas=lambdas,
+            show_frequencies=show_frequencies,
             save=save_svg
         )
 
