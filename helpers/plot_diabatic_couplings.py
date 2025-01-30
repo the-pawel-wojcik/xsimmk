@@ -141,16 +141,20 @@ def coupling_to_B3u(lmbda) -> bool:
     return False
 
 
-def collect_sns_matrices(lambdas: list, normal_modes: list):
+def collect_sns_matrices(
+    lambdas: list,
+    normal_modes: list,
+    take_abs: bool = False
+):
     couplings_matrix = [[mode['frequency, cm-1']] for mode in normal_modes]
     labels = [r'freq']
 
     for lmbda in lambdas:
         if coupling_to_inactive_state(lmbda):
             continue
-        # HACK: specific for Pyrazine shows only couplings to 1B3u
-        if not coupling_to_B3u(lmbda):
-            continue
+        # # HACK: specific for Pyrazine shows only couplings to 1B3u
+        # if not coupling_to_B3u(lmbda):
+        #     continue
 
         label = ""
         for state in lmbda['EOM states']:
@@ -182,6 +186,13 @@ def collect_sns_matrices(lambdas: list, normal_modes: list):
 
     n_couplings = len(couplings_matrix[0]) - 1
     annotations_matrix = collect_sns_annotations(normal_modes, n_couplings)
+
+    if take_abs is True:
+        couplings_matrix = [
+            # [row[0]] + [val * 10 for val in row[1:]]  #  HACK: for phenoxide
+            [row[0]] + [val for val in row[1:]]
+            for row in couplings_matrix
+        ]
 
     return couplings_matrix, annotations_matrix, labels
 
@@ -222,7 +233,8 @@ def prepare_yticklabels(
                     break
 
                 if symmetry_match(last_mode, next_mode):
-                    lbl = str(next_mode['Mulliken']['number'])
+                    lbl = ""
+                    # lbl = str(next_mode['Mulliken']['number'])
                     # lbl += f" {next_mode['frequency, cm-1']:4.0f}"
                     mode_symmetries.append(lbl)
                 else:
@@ -236,7 +248,7 @@ def prepare_yticklabels(
                 for mode in normal_modes
             ]
 
-    return mode_symmetries, None
+    return mode_symmetries
 
 
 def sort_lambdas(lambdas: list[dict]):
@@ -248,19 +260,27 @@ def sort_lambdas(lambdas: list[dict]):
     )
 
 
-def show_sns_lambdas_summary(ax, normal_modes, lambdas, **heatmap_kwargs):
+def show_sns_lambdas_summary(
+        ax,
+        normal_modes,
+        lambdas,
+        take_abs: bool = True,
+        **heatmap_kwargs
+):
     use_Mulliken = all(
         all(
-            'Mulliken' for grd in lmbda['gradient']
+            'Mulliken' in grd for grd in lmbda['gradient']
         ) for lmbda in lambdas
     )
 
     sort_lambdas(lambdas)
+
     normal_modes.sort(key=lambda x: x['frequency, cm-1'])
 
     couplings, annotations, labels = collect_sns_matrices(
         lambdas=lambdas,
         normal_modes=normal_modes,
+        take_abs=take_abs,
     )
 
     max_row = max(couplings, key=lambda x: abs(max(x, key=lambda y: abs(y))))
@@ -268,12 +288,13 @@ def show_sns_lambdas_summary(ax, normal_modes, lambdas, **heatmap_kwargs):
 
     # defaults are None
     parameters = {
-        "vmin": -max_value,
-        "vmax": max_value,
         "center": 0.0,
-        # "cmap": "YlGnBu",
-        # "cmap": "coolwarm",  # divergin
-        "cmap": "vlag",  # divergin
+        "vmin": -max_value,
+        # "vmin": 0.0,
+        "vmax": max_value,
+        # "cmap": "hot_r",
+        # "cmap": "copper_r",
+        "cmap": "vlag",  # diverging (top choice for diverging)
         "fmt": '',  # string formatting options for displaying annot
         "linewidth": 0.5,  # width of the lines that divide cells.
         "square": True,

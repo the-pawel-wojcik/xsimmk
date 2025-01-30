@@ -164,14 +164,14 @@ def visualize_the_couplings(
         ax=ax_nmmodes,
         lambdas=lambdas,
         normal_modes=normal_modes,
+        take_abs=True,
         **heatmap_kwargs
     )
 
     ax_cbar.set_xlabel(r'cm$^{-1}$')
     ax.set_ylabel("Vertical energy/eV")
-    ax.yaxis.set_major_locator(ticker.MultipleLocator(0.5))
-    ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.1))
-    ax.set_xlim([-0.5, 1.5])
+    ax.minorticks_on()
+    ax.set_xlim((-0.5, 1.5))
     ax.set_xticks([])
     ax.spines[['right', 'top', 'bottom']].set_visible(False)
 
