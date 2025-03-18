@@ -7,6 +7,7 @@ from cfour_parser.text import str_eom_state
 import prettytable
 from prettytable import TableStyle
 
+
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -358,9 +359,20 @@ def show_sns_lambdas_summary(
         parameters['yticklabels'] = mode_symmetries
 
     parameters.update(heatmap_kwargs)
-    # Hack: show 1-based mode names
-    parameters['yticklabels'] = [i for i in range(1, len(couplings) + 1, 1)]
+
+    # # Hack: show 1-based mode names
+    # yticks_one_based = list()
+    # for idx in range(1, len(couplings)+1):
+    #     if idx % 2 == 0:
+    #         yticks_one_based.append('')
+    #     else:
+    #         yticks_one_based.append(str(idx))
+    # parameters['yticklabels'] = yticks_one_based
+
     sns.heatmap(couplings, **parameters)
+
+    # # Hack: show 1-based mode names
+    # ax.tick_params(axis='y', labelrotation=0)
 
     return ax
 
