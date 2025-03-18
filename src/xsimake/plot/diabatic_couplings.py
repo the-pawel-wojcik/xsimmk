@@ -1,3 +1,4 @@
+import argparse
 import sys
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -5,6 +6,27 @@ from xsim.xsim_ids_processor import get_data_with_xsim_ids
 from cfour_parser.text import str_eom_state
 import prettytable
 from prettytable import TableStyle
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--save_figure',
+        default=False,
+        action='store_true'
+    )
+    parser.add_argument(
+        '--show_frequencies',
+        default=False,
+        action='store_true'
+    )
+    parser.add_argument(
+        '--take_abs',
+        help='Broken! Display only the absolute values of the couplings',
+        default=False,
+        action='store_true'
+    )
+    args = parser.parse_args()
+    return args
 
 
 def pprint_Mulliken_irrep(mode: dict) -> str:
@@ -336,21 +358,38 @@ def show_sns_lambdas_summary(
         parameters['yticklabels'] = mode_symmetries
 
     parameters.update(heatmap_kwargs)
+    # Hack: show 1-based mode names
+    parameters['yticklabels'] = [i for i in range(1, len(couplings) + 1, 1)]
     sns.heatmap(couplings, **parameters)
 
     return ax
 
 
 def main():
+    args = get_args()
     data = get_data_with_xsim_ids()
     lambdas = data['lambdas']
     nmodes = data['nmodes']
 
     show_text_lambdas_summary(lambdas)
 
-    _, ax = plt.subplots(layout='constrained')
-    show_sns_lambdas_summary(ax, normal_modes=nmodes, lambdas=lambdas)
-    plt.show()
+    fig, ax = plt.subplots(layout='constrained')
+    show_frequencies = args.show_frequencies
+    take_abs = args.take_abs
+    show_sns_lambdas_summary(
+        ax,
+        normal_modes=nmodes,
+        lambdas=lambdas,
+        take_abs=take_abs,
+        show_frequencies=show_frequencies,
+    )
+
+    save = args.save_figure
+    if save is False:
+        plt.show()
+    else:
+        fig.savefig(fname='couplings.pdf')
+        print(f"Info: Figure saved as couplings.pdf", file=sys.stderr)
 
 
 if __name__ == "__main__":
