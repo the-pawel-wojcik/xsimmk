@@ -1,5 +1,7 @@
-import matplotlib as mpl
 import matplotlib.pyplot as plt
+from typing import Any
+from matplotlib.axes import Axes
+from matplotlib.text import Text
 from matplotlib.gridspec import GridSpec
 from cfour_parser.text import str_eom_state
 from xsim.db.prepare import energies_match
@@ -31,7 +33,7 @@ def max_energy(states):
     return max_energy
 
 
-def state_plot(ax: mpl.axes.Axes, state: dict) -> mpl.text.Text:
+def state_plot(ax: Axes, state: dict) -> Text | None:
     if 'transition' not in state['energy'].keys():
         print("Warning: State (" + str_eom_state(state) + ") is missing "
               "transition energy.", file=sys.stderr)
@@ -57,7 +59,7 @@ def state_plot(ax: mpl.axes.Axes, state: dict) -> mpl.text.Text:
         return
     ys = [energy] * 2
 
-    kwargs = {
+    kwargs: dict[str, Any] = {
         'linewidth': 3
     }
     if 'xsim #' in state.keys() and state['xsim #'] > 0:
@@ -111,8 +113,8 @@ def mk_filename(lambdas):
 
 
 def decongest_state_lables(
-        state_labels: list[mpl.text.Text],
-        ax: mpl.axes.Axes,
+        state_labels: list[Text],
+        ax: Axes,
 ):
     only_move = {
         "text": "y",
