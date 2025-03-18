@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from xsim.xsim_ids_processor import get_data_with_xsim_ids
 from cfour_parser.text import str_eom_state
 import prettytable
+from prettytable import TableStyle
 
 
 def pprint_Mulliken_irrep(mode: dict) -> str:
@@ -68,7 +69,7 @@ def print_active_lambdas_table(lmbda):
     table.field_names = [key for key in lmbda[0].keys()]
     for row in lmbda:
         table.add_row([val for val in row.values()])
-    table.set_style(prettytable.SINGLE_BORDER)
+    table.set_style(TableStyle.SINGLE_BORDER)
 
     for key in ['frequency, cm-1', 'gradient, cm-1']:
         table.custom_format[key] = lambda _, v: f"{v:.2f}"
@@ -91,7 +92,7 @@ def print_inactive_lambdas_table(lmbda):
         lmbda[0].keys()) if key != 'xsim #']
     for row in lmbda:
         table.add_row([val for val in list(row.values()) if val != -1])
-    table.set_style(prettytable.SINGLE_BORDER)
+    table.set_style(TableStyle.SINGLE_BORDER)
 
     for key in ['frequency, cm-1', 'gradient, cm-1']:
         table.custom_format[key] = lambda _, v: f"{v:.2f}"
