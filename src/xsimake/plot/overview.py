@@ -1,6 +1,6 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
+from matplotlib.gridspec import GridSpec
 from cfour_parser.text import str_eom_state
 from xsim.db.prepare import energies_match
 from xsim.xsim_ids_processor import get_data_with_xsim_ids
@@ -137,7 +137,7 @@ def visualize_the_couplings(
     height = 3.75
     width = 16/9 * height
     fig = plt.figure(figsize=(width, height), layout='constrained')
-    gs0: mpl.gridspec.GridSpec = fig.add_gridspec(
+    gs0: GridSpec = fig.add_gridspec(
         nrows=1,
         ncols=3,
         width_ratios=[1, 1, 0.25],

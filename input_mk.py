@@ -5,7 +5,7 @@ import math as m
 import sys
 from xsim.db.prepare import energies_match
 from xsim.xsim_ids_processor import get_data_with_xsim_ids
-from xsim.helpers.plot_overview import visualize_the_couplings
+from xsim.src.xsimake.plot.overview import visualize_the_couplings
 
 eV2cm = 8065.543937
 ADIABATIC_ANALYSIS = """
