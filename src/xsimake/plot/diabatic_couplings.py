@@ -1,6 +1,5 @@
 import sys
 import seaborn as sns
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 from xsim.xsim_ids_processor import get_data_with_xsim_ids
 from cfour_parser.text import str_eom_state
@@ -56,7 +55,7 @@ def show_text_lambdas_summary(lambdas):
         print_inactive_lambdas_table(inactive_lmbda)
 
 
-def format_Mulliken(f, v):
+def format_Mulliken(_, v):
     return f"{v['number']:2d}({v['symmetry']})"
 
 
@@ -72,13 +71,13 @@ def print_active_lambdas_table(lmbda):
     table.set_style(prettytable.SINGLE_BORDER)
 
     for key in ['frequency, cm-1', 'gradient, cm-1']:
-        table.custom_format[key] = lambda f, v: f"{v:.2f}"
+        table.custom_format[key] = lambda _, v: f"{v:.2f}"
         table.align[key] = 'r'
 
     table.custom_format['Mulliken'] = format_Mulliken
 
-    table.custom_format['xsim #'] = lambda f, v: f"{v:-3d}"
-    table.align[key] = 'r'
+    table.custom_format['xsim #'] = lambda _, v: f"{v:-3d}"
+    table.align['xsim #'] = 'r'
     print(table)
 
 
@@ -95,7 +94,7 @@ def print_inactive_lambdas_table(lmbda):
     table.set_style(prettytable.SINGLE_BORDER)
 
     for key in ['frequency, cm-1', 'gradient, cm-1']:
-        table.custom_format[key] = lambda f, v: f"{v:.2f}"
+        table.custom_format[key] = lambda _, v: f"{v:.2f}"
         table.align[key] = 'r'
 
     table.custom_format['Mulliken'] = format_Mulliken
@@ -205,10 +204,10 @@ def prepare_yticklabels(
         normal_modes: list[dict],
         mulliken_to_idx: list[dict],
         use_Mulliken: bool = True,
-) -> list[str]:
+) -> list[str] | None:
 
+    symmetry_labels = all(mode['symmetry'] != '???' for mode in normal_modes)
     symmetry_labels = False
-    symmetry_labels = True
     if symmetry_labels is True:
         if use_Mulliken:
             pre_mode_symmetries = [
@@ -247,6 +246,8 @@ def prepare_yticklabels(
                 pretty_print_irrep(mode['symmetry'])
                 for mode in normal_modes
             ]
+    else:
+        return None
 
     return mode_symmetries
 
@@ -330,7 +331,8 @@ def show_sns_lambdas_summary(
         normal_modes, mulliken_to_idx, use_Mulliken
     )
 
-    parameters['yticklabels'] = mode_symmetries
+    if mode_symmetries is not None:
+        parameters['yticklabels'] = mode_symmetries
 
     parameters.update(heatmap_kwargs)
     sns.heatmap(couplings, **parameters)
@@ -345,7 +347,7 @@ def main():
 
     show_text_lambdas_summary(lambdas)
 
-    fig, ax = plt.subplots(layout='constrained')
+    _, ax = plt.subplots(layout='constrained')
     show_sns_lambdas_summary(ax, normal_modes=nmodes, lambdas=lambdas)
     plt.show()
 

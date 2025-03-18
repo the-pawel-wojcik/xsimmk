@@ -1,3 +1,4 @@
+import argparse
 import matplotlib.pyplot as plt
 from typing import Any
 from matplotlib.axes import Axes
@@ -6,11 +7,17 @@ from matplotlib.gridspec import GridSpec
 from cfour_parser.text import str_eom_state
 from xsim.db.prepare import energies_match
 from xsim.xsim_ids_processor import get_data_with_xsim_ids
-from xsim.helpers.plot_diabatic_couplings import show_sns_lambdas_summary
+from xsim.src.xsimake.plot.diabatic_couplings import show_sns_lambdas_summary
 from templates.save import save_to_file
 import sys
 from adjustText import adjust_text
 
+
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--save_figure', default=False, action='store_true')
+    args = parser.parse_args()
+    return args
 
 def max_energy(states):
     """
@@ -190,12 +197,13 @@ def visualize_the_couplings(
 
 
 def main():
+    args = get_args()
     data = get_data_with_xsim_ids()
     eom_states = data['eom states']
     lambdas = data['lambdas']
     nmodes = data['nmodes']
-    # visualize_the_couplings(eom_states, nmodes, lambdas, save=True)
-    visualize_the_couplings(eom_states, nmodes, lambdas, save=False)
+    save = args.save_figure
+    visualize_the_couplings(eom_states, nmodes, lambdas, save=save)
 
 
 if __name__ == "__main__":
