@@ -26,6 +26,12 @@ def get_args():
         default=False,
         action='store_true'
     )
+    parser.add_argument(
+        '--quiet',
+        help='Don\'t print summaries.',
+        default=False,
+        action='store_true'
+    )
     args = parser.parse_args()
     return args
 
@@ -231,7 +237,7 @@ def prepare_yticklabels(
 ) -> list[str] | None:
 
     symmetry_labels = all(mode['symmetry'] != '???' for mode in normal_modes)
-    symmetry_labels = False
+    symmetry_labels = False  # Hack
     if symmetry_labels is True:
         if use_Mulliken:
             pre_mode_symmetries = [
@@ -383,7 +389,9 @@ def main():
     lambdas = data['lambdas']
     nmodes = data['nmodes']
 
-    show_text_lambdas_summary(lambdas)
+    quiet = args.quiet
+    if not quiet:
+        show_text_lambdas_summary(lambdas)
 
     fig, ax = plt.subplots(layout='constrained')
     show_frequencies = args.show_frequencies
