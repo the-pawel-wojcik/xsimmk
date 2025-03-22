@@ -14,7 +14,7 @@ from parsers.text import str_eom_state
 from typing import Any
 
 # modes have the same frequency if they differ by less than FREQ_TOL cm-1
-FREQ_TOL = 0.75
+FREQ_TOL = 0.05
 
 
 def get_default_locations(
@@ -65,7 +65,7 @@ def add_Mulliken_names_to_modes(modes: list[dict], new_names: list[dict]):
                 continue
             if found is True:
                 print(
-                    "Warning: Detected multiple modes with frequency"
+                    "Warning: Detected multiple modes with frequency "
                     f"{new_freq:.0f}. The same Mulliken name will be assigned "
                     " to multiple modes. You do not want this.",
                     file=sys.stderr
