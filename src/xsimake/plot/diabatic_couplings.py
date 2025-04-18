@@ -2,10 +2,12 @@ import argparse
 import sys
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 from xsim.xsim_ids_processor import get_data_with_xsim_ids
 from cfour_parser.text import str_eom_state
 import prettytable
 from prettytable import TableStyle
+
 
 
 def get_args():
@@ -27,10 +29,16 @@ def get_args():
         action='store_true'
     )
     parser.add_argument(
+        '--no_pictures',
+        help='Don\'t show any images.',
+        default=False,
+        action='store_true'
+    )
+    parser.add_argument(
         '--quiet',
         help='Don\'t print summaries.',
         default=False,
-        action='store_true'
+        action='store_true',
     )
     args = parser.parse_args()
     return args
@@ -117,14 +125,15 @@ def print_inactive_lambdas_table(lmbda):
         return
 
     table = prettytable.PrettyTable()
-    table.field_names = [key for key in list(
-        lmbda[0].keys()) if key != 'xsim #']
+    table.field_names = [
+        key for key in list(lmbda[0].keys()) if key != 'xsim #'
+    ]
     for row in lmbda:
         table.add_row([val for val in list(row.values()) if val != -1])
     table.set_style(TableStyle.SINGLE_BORDER)
 
     for key in ['frequency, cm-1', 'gradient, cm-1']:
-        table.custom_format[key] = lambda _, v: f"{v:.2f}"
+        table.custom_format[key] = lambda _, v: f"{v:.0f}"
         table.align[key] = 'r'
 
     table.custom_format['Mulliken'] = format_Mulliken
@@ -292,7 +301,7 @@ def sort_lambdas(lambdas: list[dict]):
 
 
 def show_sns_lambdas_summary(
-        ax,
+        ax: Axes,
         normal_modes,
         lambdas,
         take_abs: bool = True,
@@ -366,19 +375,19 @@ def show_sns_lambdas_summary(
 
     parameters.update(heatmap_kwargs)
 
-    # # Hack: show 1-based mode names
-    # yticks_one_based = list()
-    # for idx in range(1, len(couplings)+1):
-    #     if idx % 2 == 0:
-    #         yticks_one_based.append('')
-    #     else:
-    #         yticks_one_based.append(str(idx))
-    # parameters['yticklabels'] = yticks_one_based
+    # Hack: show 1-based mode names
+    yticks_one_based = list()
+    for idx in range(1, len(couplings)+1):
+        if idx % 2 == 0:
+            yticks_one_based.append('')
+        else:
+            yticks_one_based.append(str(idx))
+    parameters['yticklabels'] = yticks_one_based
 
     sns.heatmap(couplings, **parameters)
 
-    # # Hack: show 1-based mode names
-    # ax.tick_params(axis='y', labelrotation=0)
+    # Hack: show 1-based mode names
+    ax.tick_params(axis='y', labelrotation=0)
 
     return ax
 
@@ -393,23 +402,25 @@ def main():
     if not quiet:
         show_text_lambdas_summary(lambdas)
 
-    fig, ax = plt.subplots(layout='constrained')
-    show_frequencies = args.show_frequencies
-    take_abs = args.take_abs
-    show_sns_lambdas_summary(
-        ax,
-        normal_modes=nmodes,
-        lambdas=lambdas,
-        take_abs=take_abs,
-        show_frequencies=show_frequencies,
-    )
+    no_pictures = args.no_pictures
+    if not no_pictures:
+        fig, ax = plt.subplots(layout='constrained')
+        show_frequencies = args.show_frequencies
+        take_abs = args.take_abs
+        show_sns_lambdas_summary(
+            ax,
+            normal_modes=nmodes,
+            lambdas=lambdas,
+            take_abs=take_abs,
+            show_frequencies=show_frequencies,
+        )
 
-    save = args.save_figure
-    if save is False:
-        plt.show()
-    else:
-        fig.savefig(fname='couplings.pdf')
-        print(f"Info: Figure saved as couplings.pdf", file=sys.stderr)
+        save = args.save_figure
+        if save is False:
+            plt.show()
+        else:
+            fig.savefig(fname='couplings.pdf')
+            print(f"Info: Figure saved as couplings.pdf", file=sys.stderr)
 
 
 if __name__ == "__main__":
