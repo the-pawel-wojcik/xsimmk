@@ -83,6 +83,7 @@ def inactive_state_involved(gradient):
 
 
 def show_text_gradient_summary(gradients, name: str):
+    sort_gradients(gradients)
     for gradient in gradients:
         if inactive_state_involved(gradient):
             continue
