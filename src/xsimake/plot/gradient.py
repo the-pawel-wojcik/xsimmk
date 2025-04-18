@@ -9,36 +9,50 @@ import prettytable
 from prettytable import TableStyle
 
 
-
 def get_args():
     parser = argparse.ArgumentParser()
+    which_gradient = parser.add_mutually_exclusive_group()
+    which_gradient.add_argument(
+        '--kappas',
+        default=False,
+        action='store_true',
+        help='Regular energy gradients.',
+    )
+    which_gradient.add_argument(
+        '--lambdas',
+        default=False,
+        action='store_true',
+        help='"Inter-state" gradients, a.k.a., linear diabatic couplings.',
+    )
     parser.add_argument(
         '--save_figure',
         default=False,
-        action='store_true'
+        action='store_true',
+        help='TODO: not implemented',
     )
     parser.add_argument(
         '--show_frequencies',
         default=False,
-        action='store_true'
-    )
-    parser.add_argument(
-        '--take_abs',
-        help='Broken! Display only the absolute values of the couplings',
-        default=False,
-        action='store_true'
+        action='store_true',
+        help='TODO: not implemented',
     )
     parser.add_argument(
         '--no_pictures',
-        help='Don\'t show any images.',
         default=False,
-        action='store_true'
+        action='store_true',
+        help='Don\'t show any images. So far the only implemented option',
     )
     parser.add_argument(
         '--quiet',
         help='Don\'t print summaries.',
         default=False,
         action='store_true',
+    )
+    parser.add_argument(
+        '--take_abs',
+        help='Broken! Display only the absolute values of the couplings',
+        default=False,
+        action='store_true'
     )
     args = parser.parse_args()
     return args
@@ -60,51 +74,49 @@ def pretty_print_irrep(irrep):
     return pretty
 
 
-def coupling_to_inactive_state(lmbda):
-    if lmbda['EOM states'][0]['xsim #'] <= 0:
-        return True
-
-    if lmbda['EOM states'][1]['xsim #'] <= 0:
-        return True
+def inactive_state_involved(gradient):
+    for state in gradient['EOM states']:
+        if state['xsim #'] <= 0:
+            return True
 
     return False
 
 
-def show_text_lambdas_summary(lambdas):
-    for lmbda in lambdas:
-        if coupling_to_inactive_state(lmbda):
+def show_text_gradient_summary(gradients, name: str):
+    for gradient in gradients:
+        if inactive_state_involved(gradient):
             continue
 
-        print("Coupling between:")
-        for state in lmbda['EOM states']:
+        print("Gradient calculated for the following state(s):")
+        for state in gradient['EOM states']:
             print(str_eom_state(state))
 
-        active_lmbda = [
-            mode for mode in lmbda['gradient'] if mode['xsim #'] > 0
+        active_grad = [
+            mode for mode in gradient['gradient'] if mode['xsim #'] > 0
         ]
-        inactive_lmbda = [
-            mode for mode in lmbda['gradient'] if mode['xsim #'] <= 0
+        inactive_grad = [
+            mode for mode in gradient['gradient'] if mode['xsim #'] <= 0
         ]
 
-        print("Couplings included in the model:")
-        print_active_lambdas_table(active_lmbda)
+        print(f"{name[0].upper() + name[1:]}s included in the model:")
+        print_active_gradient_table(active_grad)
 
-        print("Couplings ommited in the model:")
-        print_inactive_lambdas_table(inactive_lmbda)
+        print(f"{name[0].upper() + name[1:]}s ommited in the model:")
+        print_inactive_gradient_table(inactive_grad)
 
 
 def format_Mulliken(_, v):
     return f"{v['number']:2d}({v['symmetry']})"
 
 
-def print_active_lambdas_table(lmbda):
-    if len(lmbda) == 0:
+def print_active_gradient_table(gradient: list):
+    if len(gradient) == 0:
         print("No active modes in the model.")
         return
 
     table = prettytable.PrettyTable()
-    table.field_names = [key for key in lmbda[0].keys()]
-    for row in lmbda:
+    table.field_names = [key for key in gradient[0].keys()]
+    for row in sorted(gradient, key=lambda x: x['Mulliken']['number']):
         table.add_row([val for val in row.values()])
     table.set_style(TableStyle.SINGLE_BORDER)
 
@@ -119,16 +131,19 @@ def print_active_lambdas_table(lmbda):
     print(table)
 
 
-def print_inactive_lambdas_table(lmbda):
-    if len(lmbda) == 0:
+def print_inactive_gradient_table(gradient):
+    """ Differs slightly from `print_active_gradient_table` as this one does
+    not print the `xsim #` column.
+    """
+    if len(gradient) == 0:
         print("No inactive modes in the model.")
         return
 
     table = prettytable.PrettyTable()
     table.field_names = [
-        key for key in list(lmbda[0].keys()) if key != 'xsim #'
+        key for key in list(gradient[0].keys()) if key != 'xsim #'
     ]
-    for row in lmbda:
+    for row in sorted(gradient, key=lambda x: x['Mulliken']['number']):
         table.add_row([val for val in list(row.values()) if val != -1])
     table.set_style(TableStyle.SINGLE_BORDER)
 
@@ -180,22 +195,22 @@ def coupling_to_B3u(lmbda) -> bool:
 
 
 def collect_sns_matrices(
-    lambdas: list,
+    gradients: list,
     normal_modes: list,
     take_abs: bool = False
 ):
-    couplings_matrix = [[mode['frequency, cm-1']] for mode in normal_modes]
+    gradients_matrix = [[mode['frequency, cm-1']] for mode in normal_modes]
     labels = [r'freq']
 
-    for lmbda in lambdas:
-        if coupling_to_inactive_state(lmbda):
+    for grad in gradients:
+        if inactive_state_involved(grad):
             continue
         # # HACK: specific for Pyrazine shows only couplings to 1B3u
         # if not coupling_to_B3u(lmbda):
         #     continue
 
         label = ""
-        for state in lmbda['EOM states']:
+        for state in grad['EOM states']:
 
             if 'nickname' in state['ids']:
                 label += ' ' + state['ids']['nickname']
@@ -216,23 +231,23 @@ def collect_sns_matrices(
 
         labels += [label]
 
-        # Collect couplings
-        matrix = [[mode['gradient, cm-1']] for mode in lmbda['gradient']]
-        couplings_matrix = [current_row + new_row
+        # Collect componets
+        matrix = [[mode['gradient, cm-1']] for mode in grad['gradient']]
+        gradients_matrix = [current_row + new_row
                             for current_row, new_row
-                            in zip(couplings_matrix, matrix)]
+                            in zip(gradients_matrix, matrix)]
 
-    n_couplings = len(couplings_matrix[0]) - 1
+    n_couplings = len(gradients_matrix[0]) - 1
     annotations_matrix = collect_sns_annotations(normal_modes, n_couplings)
 
     if take_abs is True:
-        couplings_matrix = [
+        gradients_matrix = [
             # [row[0]] + [val * 10 for val in row[1:]]  #  HACK: for phenoxide
             [row[0]] + [val for val in row[1:]]
-            for row in couplings_matrix
+            for row in gradients_matrix
         ]
 
-    return couplings_matrix, annotations_matrix, labels
+    return gradients_matrix, annotations_matrix, labels
 
 
 def symmetry_match(left: dict, right: dict) -> bool:
@@ -291,35 +306,36 @@ def prepare_yticklabels(
     return mode_symmetries
 
 
-def sort_lambdas(lambdas: list[dict]):
-    for lmbda in lambdas:
-        lmbda['EOM states'].sort(key=lambda x: x['energy']['transition']['eV'])
+def sort_gradients(gradients: list[dict]):
+    for grad in gradients:
+        grad['EOM states'].sort(key=lambda x: x['energy']['transition']['eV'])
 
-    lambdas.sort(key=lambda x: sum(
-        eom['energy']['transition']['eV'] for eom in x['EOM states'])
-    )
+    gradients.sort(key=lambda x: sum(
+        eom['energy']['transition']['eV'] for eom in x['EOM states']
+    ))
 
 
-def show_sns_lambdas_summary(
+def show_sns_gradient_summary(
         ax: Axes,
         normal_modes,
-        lambdas,
+        gradients,
         take_abs: bool = True,
         show_frequencies: bool = True,
         **heatmap_kwargs
 ):
     use_Mulliken = all(
         all(
-            'Mulliken' in grd for grd in lmbda['gradient']
-        ) for lmbda in lambdas
+            'Mulliken' in grd for grd in gradient['gradient']
+        ) for gradient in gradients
     )
 
-    sort_lambdas(lambdas)
+    # Show gradients in the increasing energy order
+    sort_gradients(gradients)
 
     normal_modes.sort(key=lambda x: x['frequency, cm-1'])
 
     couplings, annotations, labels = collect_sns_matrices(
-        lambdas=lambdas,
+        gradients=gradients,
         normal_modes=normal_modes,
         take_abs=take_abs,
     )
@@ -395,22 +411,34 @@ def show_sns_lambdas_summary(
 def main():
     args = get_args()
     data = get_data_with_xsim_ids()
-    lambdas = data['lambdas']
+    if args.kappas is True:
+        gradients = data['linear kappas']
+        name = 'kappas'
+    elif args.lambdas is True:
+        gradients = data['lambdas']
+        name = 'lambdas'
+    else:
+        print(
+            "Error. Pick gradient, i.e., --kappas or --lambdas",
+            file=sys.stderr
+        )
+        sys.exit(1)
+
     nmodes = data['nmodes']
 
     quiet = args.quiet
     if not quiet:
-        show_text_lambdas_summary(lambdas)
+        show_text_gradient_summary(gradients, name)
 
     no_pictures = args.no_pictures
     if not no_pictures:
         fig, ax = plt.subplots(layout='constrained')
         show_frequencies = args.show_frequencies
         take_abs = args.take_abs
-        show_sns_lambdas_summary(
+        show_sns_gradient_summary(
             ax,
             normal_modes=nmodes,
-            lambdas=lambdas,
+            gradients=gradients,
             take_abs=take_abs,
             show_frequencies=show_frequencies,
         )
@@ -419,8 +447,9 @@ def main():
         if save is False:
             plt.show()
         else:
-            fig.savefig(fname='couplings.pdf')
-            print(f"Info: Figure saved as couplings.pdf", file=sys.stderr)
+            fname='gradients.pdf'
+            fig.savefig(fname=fname)
+            print(f"Info: Figure saved as {fname}", file=sys.stderr)
 
 
 if __name__ == "__main__":

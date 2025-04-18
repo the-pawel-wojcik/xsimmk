@@ -6,7 +6,7 @@ from matplotlib.gridspec import GridSpec
 from cfour_parser.text import str_eom_state
 from xsim.db.prepare import energies_match
 from xsim.xsim_ids_processor import get_data_with_xsim_ids
-from xsim.src.xsimake.plot.diabatic_couplings import show_sns_lambdas_summary, get_args
+from xsim.src.xsimake.plot.gradient import show_sns_gradient_summary, get_args
 from templates.save import save_to_file
 import sys
 from adjustText import adjust_text
@@ -163,9 +163,9 @@ def visualize_the_couplings(
         'cbar': True,
         'cbar_ax': ax_cbar,
     }
-    show_sns_lambdas_summary(
+    show_sns_gradient_summary(
         ax=ax_nmmodes,
-        lambdas=lambdas,
+        gradients=lambdas,
         normal_modes=normal_modes,
         take_abs=True,
         show_frequencies=show_frequencies,
